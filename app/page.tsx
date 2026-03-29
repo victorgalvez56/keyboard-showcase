@@ -23,11 +23,12 @@ function Keyboard() {
         name.includes("case") ||
         name.includes("root") ||
         name.includes("plate");
+      const isAnthropicText = name === "text"; // ANTHROPIC_Text exports as "Text"
       const isLabel =
-        name.includes("text") ||
+        !isAnthropicText &&
+        (name.includes("text") ||
         name.includes("legend") ||
-        name.includes("label") ||
-        name.includes("anthropic");
+        name.includes("label"));
 
       if (isCase) {
         child.material = new THREE.MeshPhysicalMaterial({
@@ -39,6 +40,11 @@ function Keyboard() {
           clearcoat: 0.1,
           clearcoatRoughness: 0.3,
           envMapIntensity: 0.5,
+        });
+      } else if (isAnthropicText) {
+        child.material = new THREE.MeshStandardMaterial({
+          color: new THREE.Color("#1a1a1a"),
+          roughness: 0.5,
         });
       } else if (isLabel) {
         child.material = new THREE.MeshStandardMaterial({
