@@ -1,65 +1,128 @@
-import Image from "next/image";
+"use client";
+
+import { Canvas } from "@react-three/fiber";
+import {
+  OrbitControls,
+  Environment,
+  useGLTF,
+  ContactShadows,
+} from "@react-three/drei";
+import { Suspense, useEffect, useRef } from "react";
+import * as THREE from "three";
+
+function Keyboard() {
+  const { scene } = useGLTF("/keyboard.glb");
+  const ref = useRef<THREE.Group>(null);
+
+  useEffect(() => {
+    scene.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+
+      const name = child.name;
+
+      // Case (root.0) and plate (root.1) — translucent orange
+      if (name === "root0" || name === "root_0" || name === "root.0" ||
+          name === "root1" || name === "root_1" || name === "root.1") {
+        child.material = new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color("#FF6B2B"),
+          roughness: 0.25,
+          transmission: 0.3,
+          ior: 1.49,
+          thickness: 0.8,
+          clearcoat: 0.1,
+          clearcoatRoughness: 0.3,
+          envMapIntensity: 0.5,
+        });
+      }
+      // ANTHROPIC text
+      else if (name.toLowerCase().includes("text")) {
+        child.material = new THREE.MeshStandardMaterial({
+          color: new THREE.Color("#F0E8D0"),
+          roughness: 0.4,
+        });
+      }
+      // Keycaps — everything else
+      else {
+        child.material = new THREE.MeshStandardMaterial({
+          color: new THREE.Color("#1a1a1a"),
+          roughness: 1.0,
+          metalness: 0.0,
+          envMapIntensity: 0.0,
+        });
+      }
+    });
+  }, [scene]);
+
+  return (
+    <primitive
+      ref={ref}
+      object={scene}
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, -0.5, 0]}
+      scale={2.5}
+    />
+  );
+}
+
+function Loader() {
+  return (
+    <mesh rotation={[0, 0, 0]}>
+      <torusGeometry args={[0.5, 0.1, 16, 32]} />
+      <meshStandardMaterial color="#FF6B2B" wireframe />
+    </mesh>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="h-screen w-screen relative" style={{ background: "#fafafa" }}>
+      <Canvas
+        camera={{ position: [0, 0, 5], fov: 35 }}
+        gl={{
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.0,
+        }}
+      >
+        <color attach="background" args={["#fafafa"]} />
+
+        <Suspense fallback={<Loader />}>
+          <Keyboard />
+
+          <ContactShadows
+            position={[0, -0.5, 0]}
+            opacity={0.35}
+            scale={10}
+            blur={2.5}
+            far={2}
+          />
+
+          <Environment preset="studio" />
+        </Suspense>
+
+        <OrbitControls
+          enablePan={false}
+          enableZoom={false}
+          minDistance={2.5}
+          maxDistance={10}
+          target={[0, 0.5, 0]}
+          enableDamping
+          dampingFactor={0.05}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </Canvas>
+
+      {/* Title overlay */}
+      <div className="absolute top-8 left-8 pointer-events-none select-none">
+        <h1 className="text-3xl font-bold text-zinc-800 tracking-tight font-mono">
+          ANTHROPIC
+        </h1>
+        <p className="text-zinc-400 text-sm mt-1">Space Invader Macro Pad</p>
+      </div>
+
+      {/* Controls hint */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-zinc-400 text-xs pointer-events-none select-none tracking-wide">
+        DRAG TO ROTATE
+      </div>
     </div>
   );
 }
