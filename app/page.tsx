@@ -1,28 +1,35 @@
 "use client";
 
-import { Canvas } from "@react-three/fiber";
-import {
-  OrbitControls,
-  Environment,
-  useGLTF,
-  ContactShadows,
-} from "@react-three/drei";
-import { Suspense, useEffect, useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Environment, useGLTF, ContactShadows } from "@react-three/drei";
+import { Suspense, useEffect, useRef, useCallback } from "react";
 import * as THREE from "three";
 
 function Keyboard() {
   const { scene } = useGLTF("/keyboard.glb");
   const ref = useRef<THREE.Group>(null);
+  const isDragging = useRef(false);
+  const previousX = useRef(0);
+  const yRotation = useRef(0);
+  const { gl } = useThree();
 
   useEffect(() => {
     scene.traverse((child) => {
       if (!(child instanceof THREE.Mesh)) return;
 
-      const name = child.name;
+      const name = child.name.toLowerCase();
 
-      // Case (root.0) and plate (root.1) — translucent orange
-      if (name === "root0" || name === "root_0" || name === "root.0" ||
-          name === "root1" || name === "root_1" || name === "root.1") {
+      const isCase =
+        name.includes("case") ||
+        name.includes("root") ||
+        name.includes("plate");
+      const isLabel =
+        name.includes("text") ||
+        name.includes("legend") ||
+        name.includes("label") ||
+        name.includes("anthropic");
+
+      if (isCase) {
         child.material = new THREE.MeshPhysicalMaterial({
           color: new THREE.Color("#FF6B2B"),
           roughness: 0.25,
@@ -33,16 +40,12 @@ function Keyboard() {
           clearcoatRoughness: 0.3,
           envMapIntensity: 0.5,
         });
-      }
-      // ANTHROPIC text
-      else if (name.toLowerCase().includes("text")) {
+      } else if (isLabel) {
         child.material = new THREE.MeshStandardMaterial({
           color: new THREE.Color("#F0E8D0"),
           roughness: 0.4,
         });
-      }
-      // Keycaps — everything else
-      else {
+      } else {
         child.material = new THREE.MeshStandardMaterial({
           color: new THREE.Color("#1a1a1a"),
           roughness: 1.0,
@@ -53,14 +56,54 @@ function Keyboard() {
     });
   }, [scene]);
 
+  const onPointerDown = useCallback((e: PointerEvent) => {
+    isDragging.current = true;
+    previousX.current = e.clientX;
+    gl.domElement.setPointerCapture(e.pointerId);
+  }, [gl]);
+
+  const onPointerMove = useCallback((e: PointerEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - previousX.current;
+    yRotation.current += dx * 0.005;
+    previousX.current = e.clientX;
+  }, []);
+
+  const onPointerUp = useCallback((e: PointerEvent) => {
+    isDragging.current = false;
+    gl.domElement.releasePointerCapture(e.pointerId);
+  }, [gl]);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", onPointerUp);
+    return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [gl, onPointerDown, onPointerMove, onPointerUp]);
+
+  useFrame(({ clock }) => {
+    if (ref.current) {
+      const t = clock.getElapsedTime();
+      // Float up and down
+      ref.current.position.y = -1.6 + Math.sin(t * 1.2) * 0.08;
+      // Drag Y rotation
+      ref.current.rotation.y = yRotation.current;
+    }
+  });
+
   return (
-    <primitive
-      ref={ref}
-      object={scene}
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[0, -0.5, 0]}
-      scale={2.5}
-    />
+    <group ref={ref} position={[0, -0.5, 0]}>
+      <primitive
+        object={scene}
+        rotation={[0, 0, 0]}
+        scale={2.5}
+      />
+    </group>
   );
 }
 
@@ -77,7 +120,7 @@ export default function Home() {
   return (
     <div className="h-screen w-screen relative" style={{ background: "#fafafa" }}>
       <Canvas
-        camera={{ position: [0, 0, 5], fov: 35 }}
+        camera={{ position: [0, 0, 6.5], fov: 35 }}
         gl={{
           antialias: true,
           toneMapping: THREE.ACESFilmicToneMapping,
@@ -90,7 +133,7 @@ export default function Home() {
           <Keyboard />
 
           <ContactShadows
-            position={[0, -0.5, 0]}
+            position={[0, -1.2, 0]}
             opacity={0.35}
             scale={10}
             blur={2.5}
@@ -99,16 +142,6 @@ export default function Home() {
 
           <Environment preset="studio" />
         </Suspense>
-
-        <OrbitControls
-          enablePan={false}
-          enableZoom={false}
-          minDistance={2.5}
-          maxDistance={10}
-          target={[0, 0.5, 0]}
-          enableDamping
-          dampingFactor={0.05}
-        />
       </Canvas>
 
       {/* Title overlay */}
