@@ -1133,7 +1133,7 @@ export default function Home() {
   );
 
   return (
-    <div className="h-screen w-screen flex flex-col lg:flex-row overflow-hidden">
+    <div className="w-screen flex flex-col lg:flex-row overflow-hidden" style={{ height: "100dvh" }}>
       {/* Desktop left panel */}
       <div
         className="hidden lg:flex lg:w-[340px] xl:w-[380px] shrink-0 flex-col justify-between p-8 select-none overflow-y-auto"
@@ -1165,7 +1165,7 @@ export default function Home() {
       </div>
 
       {/* 3D canvas — top half on mobile, right side on desktop */}
-      <div className="h-[50vh] lg:h-auto flex-none lg:flex-1 relative" style={{ background: bgColor, transition: "background 0.5s" }}>
+      <div className="flex-none lg:flex-1 relative" style={{ height: "50dvh", background: bgColor, transition: "background 0.5s" }}>
         <Canvas
           camera={{ position: [0, 0, 7.5], fov: 35 }}
           gl={{
@@ -1208,7 +1208,8 @@ export default function Home() {
 
       {/* Mobile bottom panel — scrollable config */}
       <div
-        className="h-[50vh] lg:hidden overflow-y-auto p-4 pb-8 select-none space-y-4"
+        className="lg:hidden overflow-y-auto p-4 select-none space-y-4"
+        style={{ height: "50dvh", paddingBottom: "calc(2rem + env(safe-area-inset-bottom))", scrollbarWidth: "none" as const }}
         style={{ background: "#0d0d0d", scrollbarWidth: "none" }}
       >
         {controlsContent}
