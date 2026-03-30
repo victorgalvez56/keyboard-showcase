@@ -274,7 +274,7 @@ function Keyboard({ autoRotate = false, sound = true, glow = true, exploded = fa
         mesh,
         label: closestDist < 0.5 ? closestLabel : null,
         originalZ: mesh.position.z,
-        labelOriginalZ: closestLabel ? closestLabel.position.z : 0,
+        labelOriginalZ: closestLabel ? (closestLabel as THREE.Mesh).position.z : 0,
         pressed: false,
         currentOffset: 0,
         glowIntensity: 0,
