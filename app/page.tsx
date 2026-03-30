@@ -628,6 +628,19 @@ function Keyboard({ autoRotate = false, sound = true, glow = true, exploded = fa
 }
 
 
+function ResponsiveCamera() {
+  const { camera, size } = useThree();
+  useEffect(() => {
+    // Only zoom out on small screens (mobile)
+    if (size.width < 1024) {
+      camera.position.z = 10;
+    } else {
+      camera.position.z = 7.5;
+    }
+  }, [camera, size.width]);
+  return null;
+}
+
 function Loader() {
   return (
     <Html center>
@@ -993,6 +1006,7 @@ export default function Home() {
   const [envPreset, setEnvPreset] = useState<typeof ENV_PRESETS[number]>("studio");
   const [pressAll, setPressAll] = useState(false);
   const [resetView, setResetView] = useState(0);
+  const [mobilePanel, setMobilePanel] = useState(false);
 
   const bgColor = darkBg ? "#111111" : "#fafafa";
 
@@ -1040,166 +1054,118 @@ export default function Home() {
     setTimeout(() => setPressAll(false), 400);
   };
 
-  return (
-    <div className="h-screen w-screen flex flex-col lg:flex-row overflow-hidden">
-      {/* Left panel — dark branding */}
-      <div
-        className="lg:w-[340px] xl:w-[380px] shrink-0 flex flex-col justify-between p-6 lg:p-8 select-none order-2 lg:order-1 h-[40vh] lg:h-auto overflow-y-auto"
-        style={{ background: "#0d0d0d", scrollbarWidth: "none" }}
-      >
-        {/* Top — branding */}
-        <div className="shrink-0">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 rounded-full" style={{ background: caseColor }} />
-            <span className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase">
-              Anthropic Hardware
-            </span>
-          </div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight font-mono leading-tight mt-3">
-            SPACE
-            <span className="lg:hidden"> </span>
-            <br className="hidden lg:block" />
-            INVADER
-          </h1>
-          <p style={{ color: caseColor }} className="font-mono text-xs mt-1 tracking-wide">
-            Macro Pad
-          </p>
-          <p className="text-zinc-500 text-[11px] mt-3 leading-relaxed max-w-[280px] hidden sm:block">
-            Nine keys. Zero code reviews. Pure vibecoding.
-          </p>
+  // Shared controls content
+  const controlsContent = (
+    <>
+      {/* Toggles */}
+      <div>
+        <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">Display</div>
+        <div className="grid grid-cols-2 lg:grid-cols-1 gap-1.5">
+          <ToggleBtn label="Auto Rotate" active={autoRotate} onClick={() => setAutoRotate(!autoRotate)} />
+          <ToggleBtn label="Dark Background" active={darkBg} onClick={() => setDarkBg(!darkBg)} />
+          <ToggleBtn label="Key Glow" active={glow} onClick={() => setGlow(!glow)} />
+          <ToggleBtn label="Key Sound" active={sound} onClick={() => setSound(!sound)} />
+          <ToggleBtn label="Exploded View" active={exploded} onClick={() => setExploded(!exploded)} />
+          <ToggleBtn label="X-Ray" active={xray} onClick={() => setXray(!xray)} />
+          <ToggleBtn label="Key Labels" active={showLabels} onClick={() => setShowLabels(!showLabels)} />
+          <ToggleBtn label="Dimensions" active={showDimensions} onClick={() => setShowDimensions(!showDimensions)} />
         </div>
+      </div>
 
-        {/* Controls */}
-        <div className="hidden md:block space-y-4 my-4">
-          {/* Toggles */}
-          <div>
-            <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">
-              Display
-            </div>
-            <div className="space-y-1.5">
-              <ToggleBtn label="Auto Rotate" active={autoRotate} onClick={() => setAutoRotate(!autoRotate)} />
-              <ToggleBtn label="Dark Background" active={darkBg} onClick={() => setDarkBg(!darkBg)} />
-              <ToggleBtn label="Key Glow" active={glow} onClick={() => setGlow(!glow)} />
-              <ToggleBtn label="Key Sound" active={sound} onClick={() => setSound(!sound)} />
-              <ToggleBtn label="Exploded View" active={exploded} onClick={() => setExploded(!exploded)} />
-              <ToggleBtn label="X-Ray" active={xray} onClick={() => setXray(!xray)} />
-              <ToggleBtn label="Key Labels" active={showLabels} onClick={() => setShowLabels(!showLabels)} />
-              <ToggleBtn label="Dimensions" active={showDimensions} onClick={() => setShowDimensions(!showDimensions)} />
-            </div>
-          </div>
-
-          {/* Case Color */}
-          <div>
-            <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">
-              Case Color
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {CASE_COLORS.map((c) => (
-                <button
-                  key={c.hex}
-                  onClick={() => setCaseColor(c.hex)}
-                  className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
-                    caseColor === c.hex ? "border-white scale-110" : "border-zinc-700"
-                  }`}
-                  style={{ background: c.hex }}
-                  title={c.name}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Keycap Color */}
-          <div>
-            <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">
-              Keycap Color
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {KEYCAP_COLORS.map((c) => (
-                <button
-                  key={c.hex}
-                  onClick={() => setKeycapColor(c.hex)}
-                  className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
-                    keycapColor === c.hex ? "border-white scale-110" : "border-zinc-700"
-                  }`}
-                  style={{ background: c.hex }}
-                  title={c.name}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Label Color */}
-          <div>
-            <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">
-              Label Color
-            </div>
-            <div className="flex gap-1.5 flex-wrap">
-              {LABEL_COLORS.map((c) => (
-                <button
-                  key={c.hex}
-                  onClick={() => setLabelColor(c.hex)}
-                  className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
-                    labelColor === c.hex ? "border-white scale-110" : "border-zinc-700"
-                  }`}
-                  style={{ background: c.hex }}
-                  title={c.name}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Environment */}
-          <div>
-            <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">
-              Lighting
-            </div>
-            <div className="flex gap-1 flex-wrap">
-              {ENV_PRESETS.map((preset) => (
-                <button
-                  key={preset}
-                  onClick={() => setEnvPreset(preset)}
-                  className={`px-2 py-1 rounded text-[9px] font-mono capitalize border transition-colors ${
-                    envPreset === preset
-                      ? "bg-orange-400/10 text-orange-400 border-orange-400/30"
-                      : "bg-zinc-900 text-zinc-600 border-zinc-800 hover:border-zinc-700"
-                  }`}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div>
-            <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">
-              Actions
-            </div>
-            <div className="flex gap-1.5">
-              <ActionBtn label="Press All" onClick={handlePressAll} color="orange" />
-              <ActionBtn label="Random" onClick={handleRandom} color="zinc" />
-              <ActionBtn label="Reset View" onClick={() => setResetView((v) => v + 1)} color="zinc" />
-              <ActionBtn label="Default" onClick={handleReset} color="red" />
-            </div>
+      {/* Colors row */}
+      <div className="grid grid-cols-3 lg:grid-cols-1 gap-3 lg:gap-4">
+        <div>
+          <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">Case</div>
+          <div className="flex gap-1.5 flex-wrap">
+            {CASE_COLORS.map((c) => (
+              <button key={c.hex} onClick={() => setCaseColor(c.hex)}
+                className={`w-5 h-5 lg:w-6 lg:h-6 rounded-full border-2 transition-transform hover:scale-110 ${caseColor === c.hex ? "border-white scale-110" : "border-zinc-700"}`}
+                style={{ background: c.hex }} title={c.name} />
+            ))}
           </div>
         </div>
-
-        {/* Bottom — footer */}
-        <div className="flex items-center justify-between shrink-0">
-          <p className="text-zinc-700 text-[10px] font-mono">
-            Click keys or ↑↓←→ + Enter
-          </p>
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span className="text-zinc-600 text-[10px] font-mono">
-              Interactive
-            </span>
+        <div>
+          <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">Keycap</div>
+          <div className="flex gap-1.5 flex-wrap">
+            {KEYCAP_COLORS.map((c) => (
+              <button key={c.hex} onClick={() => setKeycapColor(c.hex)}
+                className={`w-5 h-5 lg:w-6 lg:h-6 rounded-full border-2 transition-transform hover:scale-110 ${keycapColor === c.hex ? "border-white scale-110" : "border-zinc-700"}`}
+                style={{ background: c.hex }} title={c.name} />
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">Label</div>
+          <div className="flex gap-1.5 flex-wrap">
+            {LABEL_COLORS.map((c) => (
+              <button key={c.hex} onClick={() => setLabelColor(c.hex)}
+                className={`w-5 h-5 lg:w-6 lg:h-6 rounded-full border-2 transition-transform hover:scale-110 ${labelColor === c.hex ? "border-white scale-110" : "border-zinc-700"}`}
+                style={{ background: c.hex }} title={c.name} />
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Right — 3D canvas */}
-      <div className="flex-1 relative order-1 lg:order-2 h-[60vh] lg:h-auto" style={{ background: bgColor, transition: "background 0.5s" }}>
+      {/* Lighting */}
+      <div>
+        <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">Lighting</div>
+        <div className="flex gap-1 flex-wrap">
+          {ENV_PRESETS.map((preset) => (
+            <button key={preset} onClick={() => setEnvPreset(preset)}
+              className={`px-2 py-1 rounded text-[9px] font-mono capitalize border transition-colors ${
+                envPreset === preset ? "bg-orange-400/10 text-orange-400 border-orange-400/30" : "bg-zinc-900 text-zinc-600 border-zinc-800 hover:border-zinc-700"
+              }`}>{preset}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div>
+        <div className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase mb-2">Actions</div>
+        <div className="flex gap-1.5">
+          <ActionBtn label="Press All" onClick={handlePressAll} color="orange" />
+          <ActionBtn label="Random" onClick={handleRandom} color="zinc" />
+          <ActionBtn label="Reset View" onClick={() => setResetView((v) => v + 1)} color="zinc" />
+          <ActionBtn label="Default" onClick={handleReset} color="red" />
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="h-screen w-screen flex flex-col lg:flex-row overflow-hidden">
+      {/* Desktop left panel */}
+      <div
+        className="hidden lg:flex lg:w-[340px] xl:w-[380px] shrink-0 flex-col justify-between p-8 select-none overflow-y-auto"
+        style={{ background: "#0d0d0d", scrollbarWidth: "none" }}
+      >
+        <div className="shrink-0">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full" style={{ background: caseColor }} />
+            <span className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase">Anthropic Hardware</span>
+          </div>
+          <h1 className="text-3xl font-bold text-white tracking-tight font-mono leading-tight mt-3">
+            SPACE<br />INVADER
+          </h1>
+          <p style={{ color: caseColor }} className="font-mono text-xs mt-1 tracking-wide">Macro Pad</p>
+          <p className="text-zinc-500 text-[11px] mt-3 leading-relaxed max-w-[280px]">
+            Nine keys. Zero code reviews. Pure vibecoding.
+          </p>
+        </div>
+
+        <div className="space-y-4 my-4">{controlsContent}</div>
+
+        <div className="flex items-center justify-between shrink-0">
+          <p className="text-zinc-700 text-[10px] font-mono">Click keys or ↑↓←→ + Enter</p>
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            <span className="text-zinc-600 text-[10px] font-mono">Interactive</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3D canvas — top half on mobile, right side on desktop */}
+      <div className="h-[50vh] lg:h-auto flex-none lg:flex-1 relative" style={{ background: bgColor, transition: "background 0.5s" }}>
         <Canvas
           camera={{ position: [0, 0, 7.5], fov: 35 }}
           gl={{
@@ -1209,39 +1175,43 @@ export default function Home() {
           }}
         >
           <color attach="background" args={[bgColor]} />
-
+          <ResponsiveCamera />
           <Suspense fallback={<Loader />}>
             <Keyboard
-              autoRotate={autoRotate}
-              sound={sound}
-              glow={glow}
-              exploded={exploded}
-              xray={xray}
-              showLabels={showLabels}
-              showDimensions={showDimensions}
-              caseColor={caseColor}
-              keycapColor={keycapColor}
-              labelColor={labelColor}
-              pressAll={pressAll}
-              resetView={resetView}
+              autoRotate={autoRotate} sound={sound} glow={glow} exploded={exploded}
+              xray={xray} showLabels={showLabels} showDimensions={showDimensions}
+              caseColor={caseColor} keycapColor={keycapColor} labelColor={labelColor}
+              pressAll={pressAll} resetView={resetView}
             />
-
-            <ContactShadows
-              position={[0, -2.2, 0]}
-              opacity={0.35}
-              scale={10}
-              blur={2.5}
-              far={2}
-            />
-
+            <ContactShadows position={[0, -2.2, 0]} opacity={0.35} scale={10} blur={2.5} far={2} />
             <Environment preset={envPreset} />
           </Suspense>
         </Canvas>
 
+        {/* Mobile header */}
+        <div className="absolute top-3 left-4 lg:hidden pointer-events-none select-none">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: caseColor }} />
+            <span style={{ color: darkBg ? "#a1a1aa" : "#71717a" }} className="text-[10px] font-mono tracking-widest uppercase">Anthropic</span>
+          </div>
+          <h1 className="text-lg font-bold tracking-tight font-mono leading-tight mt-0.5" style={{ color: darkBg ? "#fff" : "#27272a" }}>
+            SPACE INVADER
+          </h1>
+          <p style={{ color: caseColor }} className="font-mono text-[10px] tracking-wide">Macro Pad</p>
+        </div>
+
         {/* Drag hint */}
-        <div className={`absolute bottom-4 lg:bottom-6 left-1/2 -translate-x-1/2 text-[10px] pointer-events-none select-none tracking-widest font-mono uppercase ${darkBg ? "text-zinc-600" : "text-zinc-400"}`}>
+        <div className={`absolute bottom-2 lg:bottom-6 left-1/2 -translate-x-1/2 text-[10px] pointer-events-none select-none tracking-widest font-mono uppercase ${darkBg ? "text-zinc-600" : "text-zinc-400"}`}>
           Drag to rotate
         </div>
+      </div>
+
+      {/* Mobile bottom panel — scrollable config */}
+      <div
+        className="h-[50vh] lg:hidden overflow-y-auto p-4 pb-8 select-none space-y-4"
+        style={{ background: "#0d0d0d", scrollbarWidth: "none" }}
+      >
+        {controlsContent}
       </div>
     </div>
   );
