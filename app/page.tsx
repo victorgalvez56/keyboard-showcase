@@ -1209,8 +1209,7 @@ export default function Home() {
       {/* Mobile bottom panel — scrollable config */}
       <div
         className="lg:hidden overflow-y-auto p-4 select-none space-y-4"
-        style={{ height: "50dvh", paddingBottom: "calc(2rem + env(safe-area-inset-bottom))", scrollbarWidth: "none" as const }}
-        style={{ background: "#0d0d0d", scrollbarWidth: "none" }}
+        style={{ height: "50dvh", paddingBottom: "calc(2rem + env(safe-area-inset-bottom))", scrollbarWidth: "none", background: "#0d0d0d" }}
       >
         {controlsContent}
       </div>
