@@ -335,7 +335,7 @@ function Keyboard({ autoRotate = false, sound = true, glow = true, exploded = fa
             closestDir = keycapDirs.get(kc.name) || null;
           }
         });
-        if (closestDir) dir = closestDir.clone();
+        if (closestDir) dir = (closestDir as THREE.Vector3).clone();
       } else if (isAnthropicText) {
         dir.multiplyScalar(1.5);
       } else if (isEye) {
@@ -650,7 +650,7 @@ function ClaudeTerminal() {
   const [feedback, setFeedback] = useState<{ text: string; color: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const timersRef = useRef<NodeJS.Timeout[]>([]);
-  const feedbackTimeout = useRef<NodeJS.Timeout>();
+  const feedbackTimeout = useRef<NodeJS.Timeout>(undefined);
 
   // Transition from welcome to coding after 3s
   useEffect(() => {
