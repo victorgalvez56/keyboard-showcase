@@ -5,6 +5,7 @@ import { Environment, useGLTF, ContactShadows } from "@react-three/drei";
 import { Suspense, useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 
+
 // ─── Constants ───
 const MESH_TO_ACTION: Record<string, string> = {
   key_arrow_up: "arrow_up", key_arrow_down: "arrow_down",
@@ -386,33 +387,48 @@ function haptic(src: XRInputSource, intensity: number, ms: number) {
 // ─── XR module (pre-loaded) ───
 let xrModule: typeof import("@react-three/xr") | null = null;
 let xrStore: ReturnType<typeof import("@react-three/xr")["createXRStore"]> | null = null;
+let xrModulePromise: Promise<typeof import("@react-three/xr")> | null = null;
 
-function getXRStore() {
+function ensureXRLoaded() {
+  if (!xrModulePromise && typeof window !== "undefined") {
+    xrModulePromise = import("@react-three/xr").then((mod) => { xrModule = mod; return mod; });
+  }
+  return xrModulePromise;
+}
+
+function getOrCreateStore() {
   if (!xrModule) return null;
   if (!xrStore) {
-    xrStore = xrModule.createXRStore({ hand: true, controller: true, emulate: "metaQuest3" });
+    xrStore = xrModule.createXRStore({ hand: true, controller: true });
   }
   return xrStore;
 }
 
-// Pre-load the XR module on page load
-if (typeof window !== "undefined") {
-  import("@react-three/xr").then((mod) => { xrModule = mod; });
-}
+// Pre-load
+ensureXRLoaded();
 
-// ─── XR Wrapper ───
-function XRWrapper({ children, onReady }: { children: React.ReactNode; onReady: () => void }) {
-  const store = getXRStore();
+// ─── XR Wrapper (always mounted inside Canvas) ───
+function XRLayer({ children, onStoreReady }: { children: React.ReactNode; onStoreReady: (store: NonNullable<typeof xrStore>) => void }) {
+  const [ready, setReady] = useState(!!xrModule);
 
   useEffect(() => {
-    if (store) onReady();
-  }, [store, onReady]);
+    if (xrModule) { setReady(true); return; }
+    ensureXRLoaded()?.then(() => setReady(true));
+  }, []);
 
-  if (!store || !xrModule) return <>{children}</>;
+  useEffect(() => {
+    if (ready) {
+      const store = getOrCreateStore();
+      if (store) onStoreReady(store);
+    }
+  }, [ready, onStoreReady]);
+
+  if (!ready || !xrModule) return <>{children}</>;
+  const store = getOrCreateStore()!;
   const { XR, XROrigin } = xrModule;
   return (
     <XR store={store}>
-      <XROrigin position={[0, 0, 0.5]} />
+      <XROrigin position={[0, -0.5, 0.8]} />
       {children}
     </XR>
   );
@@ -424,24 +440,24 @@ function VRScene() {
     <Suspense fallback={null}>
       <VRKeyboard />
       <Environment preset="warehouse" background />
-      <ambientLight intensity={0.3} />
-      <directionalLight position={[2, 4, 2]} intensity={0.8} />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[2, 4, 2]} intensity={1.2} />
       {/* Desk */}
       <mesh position={[0, 0.72, -0.3]} receiveShadow>
         <boxGeometry args={[1.4, 0.04, 0.9]} />
-        <meshStandardMaterial color="#2a2018" roughness={0.8} />
+        <meshStandardMaterial color="#5c3d1e" roughness={0.7} />
       </mesh>
       {/* Desk legs */}
       {[[-0.6, 0.36, -0.7], [0.6, 0.36, -0.7], [-0.6, 0.36, 0.1], [0.6, 0.36, 0.1]].map((p, i) => (
         <mesh key={i} position={p as [number, number, number]}>
           <boxGeometry args={[0.04, 0.72, 0.04]} />
-          <meshStandardMaterial color="#1e1812" roughness={0.9} />
+          <meshStandardMaterial color="#3d2810" roughness={0.9} />
         </mesh>
       ))}
       {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[20, 20]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={1} />
+        <meshStandardMaterial color="#333333" roughness={0.9} />
       </mesh>
       <ContactShadows position={[0, 0.01, 0]} opacity={0.4} scale={5} blur={2} far={3} />
     </Suspense>
@@ -450,18 +466,20 @@ function VRScene() {
 
 // ─── Page ───
 export default function VRPage() {
-  const [vrActive, setVrActive] = useState(false);
   const [vrStarted, setVrStarted] = useState(false);
+  const storeRef = useRef<NonNullable<typeof xrStore>>(null);
+
+  const onStoreReady = useCallback((store: NonNullable<typeof xrStore>) => {
+    storeRef.current = store;
+  }, []);
 
   const enterVR = useCallback(() => {
     initAudio();
-    const store = getXRStore();
-    if (store) {
-      store.enterVR();
-      setVrActive(true);
+    if (storeRef.current) {
+      storeRef.current.enterVR();
+      setVrStarted(true);
     }
   }, []);
-  const onReady = useCallback(() => { setVrStarted(true); }, []);
 
   return (
     <div className="w-screen relative" style={{ height: "100dvh", background: "#0a0a0a" }}>
@@ -478,7 +496,7 @@ export default function VRPage() {
         </div>
 
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 pointer-events-auto">
-          {!vrActive && (
+          {!vrStarted && (
             <button onClick={enterVR}
               className="px-8 py-4 rounded-xl font-mono text-sm font-bold tracking-wider uppercase transition-all hover:scale-105 active:scale-95"
               style={{ background: "linear-gradient(135deg, #FF6B2B 0%, #FF8F5E 100%)", boxShadow: "0 0 30px rgba(255,107,43,0.3), 0 4px 20px rgba(0,0,0,0.5)" }}>
@@ -512,11 +530,9 @@ export default function VRPage() {
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
         style={{ position: "absolute", inset: 0 }}
       >
-        {vrActive ? (
-          <XRWrapper onReady={onReady}><VRScene /></XRWrapper>
-        ) : (
+        <XRLayer onStoreReady={onStoreReady}>
           <VRScene />
-        )}
+        </XRLayer>
       </Canvas>
     </div>
   );
