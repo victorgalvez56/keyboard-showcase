@@ -383,36 +383,40 @@ function haptic(src: XRInputSource, intensity: number, ms: number) {
   if (ha) (ha as unknown as { pulse: (v: number, d: number) => void }).pulse(intensity, ms);
 }
 
-// ─── XR Wrapper (lazy loaded) ───
+// ─── XR module (pre-loaded) ───
+let xrModule: typeof import("@react-three/xr") | null = null;
+let xrStore: ReturnType<typeof import("@react-three/xr")["createXRStore"]> | null = null;
+
+function getXRStore() {
+  if (!xrModule) return null;
+  if (!xrStore) {
+    xrStore = xrModule.createXRStore({ hand: true, controller: true, emulate: "metaQuest3" });
+  }
+  return xrStore;
+}
+
+// Pre-load the XR module on page load
+if (typeof window !== "undefined") {
+  import("@react-three/xr").then((mod) => { xrModule = mod; });
+}
+
+// ─── XR Wrapper ───
 function XRWrapper({ children, onReady }: { children: React.ReactNode; onReady: () => void }) {
-  const [xr, setXr] = useState<{
-    XR: typeof import("@react-three/xr")["XR"];
-    XROrigin: typeof import("@react-three/xr")["XROrigin"];
-    store: ReturnType<typeof import("@react-three/xr")["createXRStore"]>;
-  } | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const store = getXRStore();
 
   useEffect(() => {
-    import("@react-three/xr").then((mod) => {
-      const store = mod.createXRStore({ hand: true, controller: true, emulate: "metaQuest3" });
-      setXr({ XR: mod.XR, XROrigin: mod.XROrigin, store });
-    });
-  }, []);
+    if (store) onReady();
+  }, [store, onReady]);
 
-  useEffect(() => {
-    if (mounted && xr) { xr.store.enterVR(); onReady(); }
-  }, [mounted, xr, onReady]);
-
-  if (!xr) return <>{children}</>;
+  if (!store || !xrModule) return <>{children}</>;
+  const { XR, XROrigin } = xrModule;
   return (
-    <xr.XR store={xr.store}>
-      <MountSignal onMount={() => setMounted(true)} />
-      <xr.XROrigin position={[0, 0, 0.5]} />
+    <XR store={store}>
+      <XROrigin position={[0, 0, 0.5]} />
       {children}
-    </xr.XR>
+    </XR>
   );
 }
-function MountSignal({ onMount }: { onMount: () => void }) { useEffect(() => { onMount(); }, [onMount]); return null; }
 
 // ─── VR Scene ───
 function VRScene() {
@@ -449,7 +453,14 @@ export default function VRPage() {
   const [vrActive, setVrActive] = useState(false);
   const [vrStarted, setVrStarted] = useState(false);
 
-  const enterVR = useCallback(() => { initAudio(); setVrActive(true); }, []);
+  const enterVR = useCallback(() => {
+    initAudio();
+    const store = getXRStore();
+    if (store) {
+      store.enterVR();
+      setVrActive(true);
+    }
+  }, []);
   const onReady = useCallback(() => { setVrStarted(true); }, []);
 
   return (
